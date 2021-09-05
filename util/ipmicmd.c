@@ -839,7 +839,7 @@ int ipmi_cmdraw(uchar cmd, uchar netfn, uchar sa, uchar bus, uchar lun,
     fperr = stderr;
     fpdbg = stdout;
 
-    if (sdata > 255) return(LAN_ERR_BADLENGTH);
+    if (sdata > IPMI_REQBUF_SIZE) return(LAN_ERR_BADLENGTH);
     if (fDriverTyp == DRV_UNKNOWN) {   /*first time, so find which one */
         rc = ipmi_open(fdebugcmd);
 	if (fdebugcmd) 
@@ -955,7 +955,7 @@ int ipmi_cmd_mc(ushort icmd, uchar *pdata, int sdata, uchar *presp,
  
    cmd = icmd & CMDMASK;
    netfn = (icmd & 0xFF00) >> 8;
-   if (sdata > 255) return(LAN_ERR_BADLENGTH);
+   if (sdata > IPMI_REQBUF_SIZE) return(LAN_ERR_BADLENGTH);
    if ((fDriverTyp != DRV_MV) && (mc->adrtype == ADDR_IPMB) && !fipmi_lan) {
       rv = ipmi_cmd_ipmb(cmd, netfn, mc->sa, mc->bus, mc->lun,
                        pdata, sdata, presp, sresp, pcc, fdebugcmd);
@@ -971,7 +971,7 @@ int ipmi_cmdraw_mc(uchar cmd, uchar netfn,
                 int *sresp, uchar *pcc, char fdebugcmd)
 {
    int rv;
-   if (sdata > 255) return(LAN_ERR_BADLENGTH);
+   if (sdata > IPMI_REQBUF_SIZE) return(LAN_ERR_BADLENGTH);
    if ((fDriverTyp != DRV_MV) && (mc->adrtype == ADDR_IPMB) && !fipmi_lan) {
       rv = ipmi_cmd_ipmb(cmd, netfn, mc->sa, mc->bus, mc->lun,
                        pdata, sdata, presp, sresp, pcc, fdebugcmd);
@@ -998,7 +998,7 @@ int ipmi_cmd(ushort icmd, uchar *pdata, int sdata, uchar *presp,
 
     fperr = stderr;
     fpdbg = stdout;
-    if (sdata > 255) return(LAN_ERR_BADLENGTH);
+    if (sdata > IPMI_REQBUF_SIZE) return(LAN_ERR_BADLENGTH);
     if (fDriverTyp == DRV_UNKNOWN) {   /*first time, so find which one */
         rc = ipmi_open(fdebugcmd);
 	if (fdebugcmd) 
