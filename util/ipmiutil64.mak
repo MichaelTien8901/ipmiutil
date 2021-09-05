@@ -64,7 +64,7 @@ HEADER=ipmicmd.h imb_api.h ipmilan.h ipmidir.h ipmilanplus.h \
        ipmiutil.h 
 
 SHOWSEL = showsel
-TARG_EXE=ievents.exe $(SHOWSEL)msg.dll ipmi_sample.exe ipmi_sample2.exe ipmi_sample_evt.exe $(SAMP_DLL)
+TARG_EXE=ievents.exe $(SHOWSEL)msg.dll ipmi_sample.exe ipmi_sample2.exe ipmi_sample_evt.exe $(SAMP_DLL) ipmiapp2.exe
 #  alarms.exe ihealth.exe $(SHOWSEL).exe $(SHOWSEL)msg.dll \
 #  ireset.exe ifru.exe ilan.exe iserial.exe wdt.exe \
 #  getevent.exe sensor.exe icmd.exe isolconsole.exe idiscover.exe \
@@ -436,3 +436,8 @@ ievents2.obj:    ievents.c ievents.h $(HEADER)
 ipmi_sample_evt.exe:  $(SAMP_LIB) ipmi_sample_evt.obj ievents2.obj isensor2.obj
         $(LINK) $(LFLAGS) $(LF_LANPLUS) /OUT:ipmi_sample_evt.exe ipmi_sample_evt.obj ievents2.obj isensor2.obj $(SAMP_LIB) $(LIBS_PEF) $(LIBS_EX)
 
+ipmiapp2.obj:    ipmiapp2.c
+    $(CC) /c $(CFLAGS_SAM) ipmiapp2.c
+
+ipmiapp2.exe:  $(SAMP_LIB) ipmiapp2.obj
+    $(LINK) $(LFLAGS) /OUT:ipmiapp2.exe ipmiapp2.obj $(SAMP_LIB) $(LIBS_PEF) $(LF_LANPLUS) $(LIBS_EX) 
