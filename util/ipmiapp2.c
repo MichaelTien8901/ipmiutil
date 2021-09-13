@@ -1,38 +1,10 @@
 /*
- * ipmi_sample.c
+ * ipmi_app2.c
  *
- * A sample IPMI utility, to which more commands can be added.
+ * A IPMI utility to upload AMI ASD certificate
  *
- * 02/27/06 Andy Cress - created 
- * 02/25/11 Andy Cress - added get_chassis_status 
+ * 09/13/20216 Michael Tien - created 
  */
-/*M*
-Copyright (c) 2007, Kontron America, Inc.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without 
-modification, are permitted provided that the following conditions are met:
-
-  a.. Redistributions of source code must retain the above copyright notice, 
-      this list of conditions and the following disclaimer. 
-  b.. Redistributions in binary form must reproduce the above copyright notice,
-      this list of conditions and the following disclaimer in the documentation 
-      and/or other materials provided with the distribution. 
-  c.. Neither the name of Kontron America, Inc. nor the names of its contributors 
-      may be used to endorse or promote products derived from this software 
-      without specific prior written permission. 
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; 
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON 
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *M*/
 #ifdef WIN32
 #include <windows.h>
 #include <stdio.h>
@@ -71,7 +43,7 @@ static char  *sdrfile = NULL;
 
 static int get_chassis_status(uchar *rdata, int rlen)
 {
-   uchar idata[4];
+   uchar idata[5];
    uchar ccode;
    int ret;
 
@@ -81,18 +53,24 @@ static int get_chassis_status(uchar *rdata, int rlen)
    return(ret);
 }  /*end get_chassis_status()*/
 #define MAX_PERMITTED_KEY_SIZE 0x2000
-#define NETFN_AMI              0xD0
+#define NETFN_AMI              0x34
 #define CMD_SET_DEBUG_INFO     0x43
+#define CMD_GET_DEBUG_INFO     0x44
 #define CTRL_UPLOAD_CERTIFICATE 1
+#define CTRL_UPLOAD_CERTIFICATE2 2
+
+#define CTRL_GET_DEBUG_INFO    0
+
 static int upload_certificate(char *keyfile)
 {
    uchar idata[MAX_PERMITTED_KEY_SIZE+1];
    int idata_len;
    uchar rdata[255];
-   int rlen;
+   int rlen = 255;
    uchar ccode;
    int ret;
    struct stat finfo;
+   int offset;
    char *pBuffer = NULL;
    FILE *fp;
 
@@ -133,16 +111,52 @@ static int upload_certificate(char *keyfile)
         return -1;
     }
     fclose(fp);
+#define UPLOAD_BATCH_SIZE 160
 
-    idata[0] = CTRL_UPLOAD_CERTIFICATE;
-    memcpy(idata+1, pBuffer, finfo.st_size);
+    for ( offset = 0; offset < finfo.st_size; offset += UPLOAD_BATCH_SIZE ) {
+      int len;
+      idata[0] = CTRL_UPLOAD_CERTIFICATE2;
+      idata[1] = (finfo.st_size >> 8) & 0xff;
+      idata[2] = finfo.st_size & 0xff;
+      idata[3] = (offset >> 8) & 0xff;
+      idata[4] = offset & 0xff;
+      if ((offset + UPLOAD_BATCH_SIZE) < finfo.st_size) {
+         len = UPLOAD_BATCH_SIZE;
+      } else {
+         len = finfo.st_size - offset;
+      }
+      memcpy(idata+5, pBuffer + offset, len);
+      idata_len = len + 5;
+      ret = ipmi_cmdraw( CMD_SET_DEBUG_INFO, NETFN_AMI, g_sa,g_bus,g_lun,
+                           idata, idata_len, rdata,&rlen,&ccode, fdebug);
+      if ( ret < 0 )
+         break;
+      if (ret == 0 && ccode != 0) ret = ccode;
+    }
     free(pBuffer);
-    idata_len = finfo.st_size+1;
-   ret = ipmi_cmdraw( CMD_SET_DEBUG_INFO, NETFN_AMI, g_sa,g_bus,g_lun,
-                        idata, idata_len, rdata,&rlen,&ccode, fdebug);
+    return(ret);
+}  
+
+static int get_debug_info(void)
+{
+   uchar idata[16];
+   uchar rdata[255];
+   int i;
+   int rlen = 6;
+   uchar ccode;
+   int ret;
+   idata[0] = CTRL_GET_DEBUG_INFO;
+   ret = ipmi_cmdraw( CMD_GET_DEBUG_INFO, NETFN_AMI, g_sa,g_bus,g_lun,
+                        idata, 1, rdata,&rlen,&ccode, fdebug);
    if (ret == 0 && ccode != 0) ret = ccode;
+   if ( ret == 0) {
+      printf( "get debug info: ");
+      for (i = 0; i < rlen; i++ )
+         printf( "0x%02X ", rdata[i]);
+      printf("\n");
+   }
    return(ret);
-}  /*end get_chassis_status()*/
+}  
 
 
 #ifdef WIN32
@@ -218,7 +232,7 @@ main(int argc, char **argv)
                 printf("       -l 10    loops sensor readings 10 times\n");
 		printf("       -m002000 specific MC (bus 00,sa 20,lun 00)\n");
                 printf("       -s File  loads SDRs from File\n");
-                printf("       -t tag   search for 'tag' in SDRs\n");
+                printf("       -t tag   search for 'tag' for certificate\n");
 		print_lan_opt_usage(1);
                 exit(1);
       }
@@ -274,12 +288,15 @@ main(int argc, char **argv)
        ipmi_min = devrec[4] >> 4;
        show_devid( devrec[2],  devrec[3], ipmi_maj, ipmi_min);
    }
-
+#if 0
+   ret = get_debug_info();
+#endif   
+#if 1   
    ret = upload_certificate(mytag);
    if (ret == 0) {
  	   printf("Upload Certificate ok\n");
    }
-
+#endif
    ipmi_close_();
    if (nodefile == NULL) done = 1;
   } /*end while not done */
