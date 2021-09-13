@@ -77,8 +77,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ADDR_IPMB    2
 
 #define ACCESS_OK    0
-// #define IPMI_REQBUF_SIZE       255
-#define IPMI_REQBUF_SIZE       0x4000
+#define IPMI_REQBUF_SIZE       255
 #define IPMI_RSPBUF_SIZE       250  // was 80, then 1024, see MAX_BUFFER_SIZE 
 #define IPMI_LANBUF_SIZE       200  // see RS_LEN_MAX for IPMI LAN
 
